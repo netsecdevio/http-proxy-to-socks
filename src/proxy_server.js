@@ -1,6 +1,5 @@
 // inspired by https://github.com/asluchevskiy/http-to-socks-proxy
 const util = require('util');
-const url = require('url');
 const http = require('http');
 const fs = require('fs');
 const Socks = require('socks');
@@ -48,24 +47,47 @@ function getFromRawHeaders(rawHeaders) {
   return headers;
 }
 
+function normalizeRequestHeaders(rawHeaders, fallbackHeaders = {}) {
+  if (!Array.isArray(rawHeaders) || rawHeaders.length === 0) {
+    return Object.assign({}, fallbackHeaders);
+  }
+
+  const rawMap = getFromRawHeaders(rawHeaders);
+  const normalized = {};
+
+  Object.keys(rawMap).forEach((key) => {
+    const values = rawMap[key];
+    normalized[key] = values.length === 1 ? values[0] : values;
+  });
+
+  return normalized;
+}
+
+function getSocksUrl(proxy) {
+  const protocol = proxy.type === 4 ? 'socks4a' : 'socks5h';
+  const hasAuth = proxy.authentication && proxy.authentication.username;
+  const auth = hasAuth
+    ? `${encodeURIComponent(proxy.authentication.username)}:${encodeURIComponent(proxy.authentication.password || '')}@`
+    : '';
+  return `${protocol}://${auth}${proxy.ipaddress}:${proxy.port}`;
+}
+
 function requestListener(getProxyInfo, request, response) {
   logger.info(`request: ${request.url}`);
 
   const proxy = getProxyInfo();
-  const ph = url.parse(request.url);
+  const ph = new URL(request.url);
+  const port = ph.port ? parseInt(ph.port, 10) : (ph.protocol === 'https:' ? 443 : 80);
+  const reqPath = `${ph.pathname}${ph.search}`;
 
-  const socksAgentOptions = Object.assign({}, proxy, {
-    host: ph.hostname, port: ph.port,
-  });
-
-  const socksAgent = new SocksProxyAgent(socksAgentOptions);
+  const socksAgent = new SocksProxyAgent(getSocksUrl(proxy));
 
   const options = {
-    port: ph.port,
+    port,
     hostname: ph.hostname,
     method: request.method,
-    path: ph.path,
-    headers: getFromRawHeaders(request.rawHeaders),
+    path: reqPath,
+    headers: normalizeRequestHeaders(request.rawHeaders, request.headers),
     agent: socksAgent,
   };
 
@@ -83,8 +105,8 @@ function requestListener(getProxyInfo, request, response) {
   });
 
   proxyRequest.on('response', (proxyResponse) => {
-    proxyResponse.pipe(response);
     response.writeHead(proxyResponse.statusCode, proxyResponse.headers);
+    proxyResponse.pipe(response);
   });
 
   request.pipe(proxyRequest);
@@ -95,16 +117,25 @@ function connectListener(getProxyInfo, request, socketRequest, head) {
 
   const proxy = getProxyInfo();
 
-  const ph = url.parse(`http://${request.url}`);
-  const { hostname: host, port } = ph;
+  const targetUrl = request.url.includes('://') ? request.url : `http://${request.url}`;
+  const ph = new URL(targetUrl);
+  const host = ph.hostname;
+  const port = ph.port ? parseInt(ph.port, 10) : 443;
+
+  const proxyConfig = {
+    host: proxy.ipaddress,
+    port: parseInt(proxy.port, 10),
+    type: proxy.type,
+  };
+
+  if (proxy.authentication && proxy.authentication.username) {
+    proxyConfig.userId = proxy.authentication.username;
+    proxyConfig.password = proxy.authentication.password || '';
+  }
 
   const options = {
-    proxy: {
-      host: proxy.ipaddress,
-      port: parseInt(proxy.port, 10),
-      type: proxy.type,
-    },
-    destination: { host, port: parseInt(port, 10) },
+    proxy: proxyConfig,
+    destination: { host, port },
     command: 'connect',
   };
 
@@ -127,10 +158,14 @@ function connectListener(getProxyInfo, request, socketRequest, head) {
 
     socket = info.socket;
 
-    socket.on('error', (err) => {
-      logger.error(`${err.message}`);
-      socketRequest.destroy(err);
-    });
+    if (typeof socket.on === 'function') {
+      socket.on('error', (err) => {
+        logger.error(`${err.message}`);
+        if (typeof socketRequest.destroy === 'function') {
+          socketRequest.destroy(err);
+        }
+      });
+    }
 
     // tunneling to the host
     socket.pipe(socketRequest);
@@ -143,13 +178,12 @@ function connectListener(getProxyInfo, request, socketRequest, head) {
 }
 
 function ProxyServer(options) {
-  // TODO: start point
   http.Server.call(this, () => { });
 
   this.proxyList = [];
 
   if (options.socks) {
-    // stand alone proxy loging
+    // stand alone proxy loading
     this.loadProxy(options.socks);
   } else if (options.socksList) {
     // proxy list loading
@@ -159,18 +193,18 @@ function ProxyServer(options) {
         () => {
           this.loadProxyFile(options.socksList);
         },
-        options.proxyListReloadTimeout * 1000
+        options.proxyListReloadTimeout * 1000,
       );
     }
   }
 
   this.addListener(
     'request',
-    requestListener.bind(null, () => randomElement(this.proxyList))
+    requestListener.bind(null, () => randomElement(this.proxyList)),
   );
   this.addListener(
     'connect',
-    connectListener.bind(null, () => randomElement(this.proxyList))
+    connectListener.bind(null, () => randomElement(this.proxyList)),
   );
 }
 
@@ -192,7 +226,7 @@ ProxyServer.prototype.loadProxyFile = function loadProxyFile(fileName) {
   fs.readFile(fileName, (err, data) => {
     if (err) {
       logger.error(
-        `Impossible to read the proxy file : ${fileName} error : ${err.message}`
+        `Impossible to read the proxy file : ${fileName} error : ${err.message}`,
       );
       return;
     }
@@ -200,9 +234,10 @@ ProxyServer.prototype.loadProxyFile = function loadProxyFile(fileName) {
     const lines = data.toString().split('\n');
     const proxyList = [];
     for (let i = 0; i < lines.length; i += 1) {
-      if (!(lines[i] !== '' && lines[i].charAt(0) !== '#')) {
+      const line = lines[i].trim();
+      if (line !== '' && line.charAt(0) !== '#') {
         try {
-          proxyList.push(parseProxyLine(lines[i]));
+          proxyList.push(parseProxyLine(line));
         } catch (ex) {
           logger.error(ex.message);
         }
@@ -219,4 +254,5 @@ module.exports = {
   getProxyObject,
   parseProxyLine,
   getFromRawHeaders,
+  getSocksUrl,
 };

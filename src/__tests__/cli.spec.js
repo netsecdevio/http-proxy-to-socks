@@ -1,3 +1,5 @@
+const { describe, it } = require('node:test');
+const assert = require('node:assert/strict');
 const { getOptionsArgs } = require('../cli');
 
 describe('cli', () => {
@@ -15,11 +17,11 @@ describe('cli', () => {
 
       Object.keys(options).forEach((name) => {
         if (name === 'FIELD_NOT_EXIST') {
-          expect(res[name]).toBeFalsy();
+          assert.equal(Boolean(res[name]), false);
           return;
         }
 
-        expect(res[name]).toBeTruthy();
+        assert.equal(Boolean(res[name]), true);
       });
     });
   });

@@ -17,7 +17,6 @@ function createServer(opts) {
 
   const { port, socks, host } = options;
 
-  // eslint-disable-next-line
   console.log(`SOCKS: ${socks}\nhttp-proxy listening: ${host}:${port}`);
 
   return createProxyServer(options).listen(port, host);

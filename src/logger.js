@@ -4,6 +4,7 @@ const chalk = require('chalk');
 const { format, createLogger: createWinstonLogger, transports } = winston;
 const { Console } = transports;
 const { combine, printf } = format;
+const SPLAT = Symbol.for('splat');
 
 const DEFAULT_COMMON_OPTIONS = {
   colorize: true,
@@ -43,10 +44,15 @@ function colorLevel(str) {
   return str;
 }
 
+function formatMessage(info) {
+  const splat = Array.isArray(info[SPLAT]) ? info[SPLAT] : [];
+  return [info.message, ...splat].filter(Boolean).join(' ');
+}
+
 function createLogger(level = 'warn') {
   return createWinstonLogger({
     format: combine(printf(info =>
-        `${getFormatedDate()} - ${colorLevel(info.level)} ${info.message}`)),
+      `${getFormatedDate()} - ${colorLevel(info.level)} ${formatMessage(info)}`)),
     level,
     transports: createTransports(),
   });

@@ -1,7 +1,9 @@
+const { describe, it } = require('node:test');
+const assert = require('node:assert/strict');
 const server = require('../server');
 
 describe('server', () => {
   it('should export `createServer`', () => {
-    expect(typeof server.createServer).toBe('function');
+    assert.equal(typeof server.createServer, 'function');
   });
 });
