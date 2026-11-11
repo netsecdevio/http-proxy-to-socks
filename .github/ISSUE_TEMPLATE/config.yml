@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/netsecdevio/http-proxy-to-socks/security/advisories/new
+    about: Report privately. Never open a public issue for a vulnerability.
+  - name: Questions and usage help
+    url: https://github.com/netsecdevio/http-proxy-to-socks/discussions
+    about: Ask here instead of filing a bug.

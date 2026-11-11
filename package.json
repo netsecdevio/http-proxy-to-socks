@@ -20,6 +20,7 @@
   },
   "scripts": {
     "test": "node --test src/__tests__/*.spec.js",
+    "lint": "eslint .",
     "prepublishOnly": "npm test"
   },
   "keywords": [
@@ -49,5 +50,10 @@
     "commander": "^12.1.0",
     "socks": "^2.8.10",
     "socks-proxy-agent": "^8.0.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0"
   }
 }

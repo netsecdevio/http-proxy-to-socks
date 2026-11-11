@@ -1,0 +1,92 @@
+name: Bug report
+description: Something in hpts misbehaves or crashes.
+title: "bug: "
+labels: [ bug ]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report security issues here. Use the private advisory link on the
+        previous page instead.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The behaviour you saw, including the exact error output.
+      placeholder: Requests through the proxy return 502 and the log says ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      placeholder: The request should reach the destination through the SOCKS proxy.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The command line you used. Replace credentials with placeholders.
+      render: shell
+      placeholder: |
+        hpts -s 127.0.0.1:1080 -p 8080 --level info
+        curl -v -x http://127.0.0.1:8080 http://example.com/
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: hpts version
+      description: Output of `hpts --version`.
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      description: Output of `node --version`.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How is hpts installed
+      options:
+        - npm install -g @dyneconllc/hpts
+        - npx @dyneconllc/hpts
+        - required as a library
+        - built from a git checkout
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: macOS 27.2 (arm64)
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output at --level info
+      description: Rerun with `--level info` and paste the output. Remove anything sensitive.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I am running the latest published version.
+          required: true
+        - label: This is not a security issue (those go through a private advisory).
+          required: true

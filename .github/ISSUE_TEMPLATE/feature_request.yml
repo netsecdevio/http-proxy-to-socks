@@ -1,0 +1,39 @@
+name: Feature request
+description: Propose behaviour hpts does not have yet.
+title: "feat: "
+labels: [ enhancement ]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do that hpts makes hard today.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: Flags, options, or API shape you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Including workarounds you already use.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      description: hpts stays deliberately small. Confirm the request fits.
+      options:
+        - label: This cannot be done with an existing flag, config key, or library call.
+          required: true
+        - label: This does not add a runtime dependency unless it is unavoidable.
+          required: true
+        - label: I understand the maintainers may decline to keep the surface small.
+          required: true
