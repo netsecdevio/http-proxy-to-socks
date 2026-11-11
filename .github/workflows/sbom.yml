@@ -23,7 +23,7 @@ concurrency:
 jobs:
   sbom:
     name: sbom
-    uses: netsecdevio/.github/.github/workflows/sbom.yml@ce858f1306afd6065dff1e4de598a0c09d745045
+    uses: netsecdevio/.github/.github/workflows/sbom.yml@ea749f611636cbb32089e3e261f3d59b6fb0a071
     with:
       node-version: '22'
     permissions:
