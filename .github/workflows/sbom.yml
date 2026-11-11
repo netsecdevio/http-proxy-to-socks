@@ -1,0 +1,30 @@
+name: SBOM
+
+# Calls the organisation workflow so every netsecdevio repository generates the
+# same documents the same way. The reference is pinned to a commit SHA because
+# this repository requires pinning for actions and reusable workflows.
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sbom-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sbom:
+    name: sbom
+    uses: netsecdevio/.github/.github/workflows/sbom.yml@ce858f1306afd6065dff1e4de598a0c09d745045
+    with:
+      node-version: '22'
+    permissions:
+      contents: read
