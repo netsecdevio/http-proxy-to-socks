@@ -1,7 +1,7 @@
 {
   "name": "@dyneconllc/hpts",
-  "version": "2.0.0",
-  "description": "hpts: convert a SOCKS5 proxy into an HTTP proxy (maintained fork of http-proxy-to-socks)",
+  "version": "2.0.1",
+  "description": "hpts: convert a SOCKS5 proxy into an HTTP proxy",
   "main": "src/server.js",
   "bin": {
     "hpts": "bin/hpts.js"

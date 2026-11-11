@@ -7,12 +7,9 @@
 `hpts` turns a SOCKS5 proxy into an HTTP proxy, so clients that only speak HTTP
 proxying can still use a SOCKS tunnel.
 
-This is a maintained fork of
-[oyyd/http-proxy-to-socks](https://github.com/oyyd/http-proxy-to-socks). Upstream
-has not shipped a release since 2019 and still pins `socks@1.x`, which predates
-the socket-flow and import fixes in `socks@2.1.6` and does not run correctly on
-current Node.js. The package name is deliberately different so an install can
-never silently resolve back to the abandoned release.
+`hpts` is an independently maintained package: current Node.js, `socks@2.8.x`,
+and a deliberately small surface. Its name is distinct from every similarly
+named package so an install can never resolve to an unintended one.
 
 - Node.js **>= 18**
 - Three runtime dependencies: `commander`, `socks@2.8.x`, `socks-proxy-agent@8`
@@ -103,4 +100,4 @@ and tunnels both an HTTP request and a `CONNECT` session through it.
 
 ## License
 
-MIT. Original work © 2017-present Ouyang Yadong; see [LICENSE.md](LICENSE.md).
+MIT. See [LICENSE.md](LICENSE.md) for the full copyright notices.

@@ -1,9 +1,13 @@
 # CHANGELOG
 
+## 2.0.1
+
+- docs: describe the package on its own terms; it is independently maintained
+- docs: repo description, badges and security notes for the standalone repository
+
 ## 2.0.0
 
-Fork of `http-proxy-to-socks`, republished as `@dyneconllc/hpts`.
-
+Republished as `@dyneconllc/hpts` with a narrowed, dependency-light core.
 - rename: package is `@dyneconllc/hpts`; the executable is still `hpts`
 - deps: `socks@^2.8.10`, `socks-proxy-agent@^8.0.5`, `commander@^12.1.0`
 - removed: `winston` and `chalk`; logging is ~60 dependency-free lines
