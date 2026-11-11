@@ -1,29 +1,44 @@
+'use strict';
+
 const { readFileSync } = require('fs');
 const { resolve } = require('path');
 const { Command } = require('commander');
 const { version } = require('../package.json');
 const { createServer } = require('./server');
+const { logger } = require('./logger');
 
-const optionNames = [
-  'socks',
-  'port',
-  'level',
-  'config',
-  'host',
-];
+// The only keys a config file may set. Merging the parsed object wholesale
+// would let a file smuggle `__proto__` or unrelated options into the server.
+const CONFIG_KEYS = ['socks', 'port', 'host', 'level'];
+const optionNames = CONFIG_KEYS.concat('config');
 
 function getFileConfig(filePath) {
   const absFile = resolve(process.cwd(), filePath);
-
   const content = readFileSync(absFile).toString('utf8');
 
+  let parsed;
+
   try {
-    return JSON.parse(content);
+    parsed = JSON.parse(content);
   } catch (err) {
-    const error = new Error(`invalid json content: ${err.message}`);
-    error.code = err.code;
-    throw error;
+    const readError = new Error(`invalid json content in ${absFile}: ${err.message}`);
+    readError.code = err.code;
+    throw readError;
   }
+
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(`invalid config in ${absFile}: expected a JSON object`);
+  }
+
+  const config = {};
+
+  CONFIG_KEYS.forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(parsed, key)) {
+      config[key] = parsed[key];
+    }
+  });
+
+  return config;
 }
 
 function getOptionsArgs(args) {
@@ -43,29 +58,37 @@ function getOptionsArgs(args) {
 
 function main(argv = process.argv) {
   const cli = new Command();
-  cli.version(version)
-    .option('-s, --socks [socks]', 'specify your socks proxy host, default: 127.0.0.1:1080')
-    .option('-p, --port [port]', 'specify the listening port of http proxy server, default: 8080')
-    .option('-l, --host [host]', 'specify the listening host of http proxy server, default: 127.0.0.1')
-    .option('-c, --config [config]', 'read configs from file in json format')
-    .option('--level [level]', 'log level, vals: info, error')
+
+  cli
+    .name('hpts')
+    .description('Convert HTTP proxy requests into SOCKS proxy requests')
+    .version(version)
+    .option('-s, --socks <socks>', 'SOCKS proxy as host:port or host:port:user:password')
+    .option('-p, --port <port>', 'port to listen on')
+    .option('-l, --host <host>', 'address to listen on')
+    .option('-c, --config <file>', 'read socks/host/port/level from a JSON file')
+    .option('--level <level>', 'log level: error, warn or info')
     .parse(argv);
 
-  const rawArgs = typeof cli.opts === 'function' ? cli.opts() : cli;
-  const options = getOptionsArgs(rawArgs);
+  const options = getOptionsArgs(cli.opts());
 
-  let fileConfig = null;
-
-  if (options.config) {
-    fileConfig = getFileConfig(options.config);
+  try {
+    // Explicit flags win over the config file.
+    const merged = Object.assign({}, getFileConfigSafe(options.config), options);
+    createServer(merged);
+  } catch (err) {
+    logger.error(err.message);
+    process.exitCode = 1;
   }
+}
 
-  Object.assign(options, fileConfig);
-
-  createServer(options);
+function getFileConfigSafe(configPath) {
+  return configPath ? getFileConfig(configPath) : {};
 }
 
 module.exports = {
+  CONFIG_KEYS,
+  getFileConfig,
   getOptionsArgs,
   main,
 };

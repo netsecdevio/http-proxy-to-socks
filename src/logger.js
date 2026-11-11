@@ -1,74 +1,66 @@
-const winston = require('winston');
-const chalk = require('chalk');
+'use strict';
 
-const { format, createLogger: createWinstonLogger, transports } = winston;
-const { Console } = transports;
-const { combine, printf } = format;
-const SPLAT = Symbol.for('splat');
+/**
+ * Minimal leveled logger: error < warn < info, no dependencies.
+ *
+ * hpts runs either as a CLI or as a library, so it must never pull a logging
+ * framework (or its transitive tree) into the caller's process. Levels are
+ * filtered here; `info` goes to stdout, `error`/`warn` to stderr, and colour is
+ * only emitted when the destination is a TTY.
+ */
 
-const DEFAULT_COMMON_OPTIONS = {
-  colorize: true,
-  timestamp: true,
-};
+const LEVELS = { error: 0, warn: 1, info: 2 };
+const COLORS = { error: '\u001b[31m', warn: '\u001b[33m', info: '\u001b[32m' };
+const RESET = '\u001b[0m';
+const DEFAULT_LEVEL = 'warn';
 
-function fillDigit(num) {
-  const str = String(num);
-  if (str.length === 1) {
-    return `0${str}`;
+function pad(value) {
+  return value < 10 ? `0${value}` : String(value);
+}
+
+function timestamp(date = new Date()) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} `
+    + `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function isLevel(name) {
+  return Object.prototype.hasOwnProperty.call(LEVELS, name);
+}
+
+function createLogger(level = DEFAULT_LEVEL) {
+  const state = { level: isLevel(level) ? level : DEFAULT_LEVEL };
+
+  function write(name, message) {
+    if (LEVELS[name] > LEVELS[state.level]) {
+      return;
+    }
+    const stream = name === 'info' ? process.stdout : process.stderr;
+    const label = stream.isTTY ? `${COLORS[name]}${name}${RESET}` : name;
+    stream.write(`${timestamp()} - ${label} ${message}\n`);
   }
 
-  return str;
+  return {
+    get level() {
+      return state.level;
+    },
+    setLevel(next) {
+      state.level = isLevel(next) ? next : DEFAULT_LEVEL;
+    },
+    error: (message) => write('error', message),
+    warn: (message) => write('warn', message),
+    info: (message) => write('info', message),
+  };
 }
 
-function getFormatedDate() {
-  const date = new Date();
-
-  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
-      + ` ${fillDigit(date.getHours())}:${fillDigit(date.getMinutes())}`
-      + `:${fillDigit(date.getSeconds())}`;
-}
-
-function createTransports() {
-  return [
-    new Console(Object.assign({}, DEFAULT_COMMON_OPTIONS)),
-  ];
-}
-
-function colorLevel(str) {
-  if (str === 'error') {
-    return chalk.red(str);
-  } else if (str === 'info') {
-    return chalk.green(str);
-  }
-
-  return str;
-}
-
-function formatMessage(info) {
-  const splat = Array.isArray(info[SPLAT]) ? info[SPLAT] : [];
-  return [info.message, ...splat].filter(Boolean).join(' ');
-}
-
-function createLogger(level = 'warn') {
-  return createWinstonLogger({
-    format: combine(printf(info =>
-      `${getFormatedDate()} - ${colorLevel(info.level)} ${formatMessage(info)}`)),
-    level,
-    transports: createTransports(),
-  });
-}
-
-function changeLevel(logger, level) {
-  logger.configure({
-    level,
-    transports: createTransports(),
-  });
+function changeLevel(target, level) {
+  target.setLevel(level);
 }
 
 const logger = createLogger();
 
 module.exports = {
-  logger,
+  DEFAULT_LEVEL,
   createLogger,
   changeLevel,
+  logger,
 };

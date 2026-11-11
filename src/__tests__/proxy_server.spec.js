@@ -28,6 +28,7 @@ describe('proxy_server', () => {
     requestListener,
     connectListener,
     getFromRawHeaders,
+    normalizeRequestHeaders,
     getSocksUrl,
   } = require('../proxy_server');
 
@@ -40,6 +41,7 @@ describe('proxy_server', () => {
     mockOn = mock.fn();
     mockRequest = mock.method(http, 'request', () => ({
       on: mockOn,
+      destroy: mock.fn(),
     }));
     mockCreateConnection = mock.method(Socks.SocksClient, 'createConnection', () => {});
 
@@ -54,6 +56,7 @@ describe('proxy_server', () => {
       on: mock.fn(),
       pipe: mock.fn(),
       url: requestURL,
+      method: 'GET',
     };
 
     socksRequest = {
@@ -67,6 +70,8 @@ describe('proxy_server', () => {
       on: mock.fn(),
       writeHead: mock.fn(),
       end: mock.fn(),
+      headersSent: false,
+      writableEnded: false,
     };
 
     socketRequest = {
@@ -74,6 +79,7 @@ describe('proxy_server', () => {
       write: mock.fn(),
       pipe: mock.fn(),
       destroy: mock.fn(),
+      destroyed: false,
     };
 
     socket = {
@@ -81,6 +87,7 @@ describe('proxy_server', () => {
       pipe: mock.fn(),
       write: mock.fn(),
       resume: mock.fn(),
+      destroy: mock.fn(),
     };
   });
 
@@ -125,6 +132,16 @@ describe('proxy_server', () => {
     it('should throw error when the proxy string is invalid', () => {
       assert.throws(() => parseProxyLine('127.0.0.1'), Error);
       assert.throws(() => parseProxyLine('127.0.0.1:8080:oyyd'), Error);
+      assert.throws(() => parseProxyLine('127.0.0.1:0'), Error);
+      assert.throws(() => parseProxyLine('127.0.0.1:65536'), Error);
+      assert.throws(() => parseProxyLine('127.0.0.1:http'), Error);
+    });
+
+    it('should not echo credentials in the error message', () => {
+      assert.throws(
+        () => parseProxyLine('127.0.0.1:0:user:secret-password-here'),
+        (err) => !err.message.includes('secret-password-here'),
+      );
     });
   });
 
@@ -138,6 +155,31 @@ describe('proxy_server', () => {
         getSocksUrl(parseProxyLine('127.0.0.1:1080:user:p@ss')),
         'socks5h://user:p%40ss@127.0.0.1:1080',
       );
+    });
+  });
+
+  describe('normalizeRequestHeaders', () => {
+    it('should drop client proxy headers so they cannot reach the destination', () => {
+      const rawHeaders = [
+        'Host', 'example.com',
+        'Proxy-Authorization', 'Basic bWFzdGVyOnNlY3JldA==',
+        'proxy-connection', 'keep-alive',
+        'Proxy-Authenticate', 'Basic',
+        'Accept', '*/*',
+      ];
+
+      const headers = normalizeRequestHeaders(rawHeaders, {});
+
+      assert.deepEqual(headers, { Host: 'example.com', Accept: '*/*' });
+    });
+
+    it('should fall back to request.headers when raw headers are absent', () => {
+      const headers = normalizeRequestHeaders(undefined, {
+        host: 'example.com',
+        'proxy-authorization': 'Basic bWFzdGVyOnNlY3JldA==',
+      });
+
+      assert.deepEqual(headers, { host: 'example.com' });
     });
   });
 
@@ -156,16 +198,23 @@ describe('proxy_server', () => {
       assert.equal(reqOptions.agent.proxy.type, 5);
     });
 
-    it('should return 500 when error thrown', () => {
+    it('should answer 400 without touching the SOCKS proxy for a relative target', () => {
+      requestListener(getProxyInfo, { ...request, url: '/just-a-path' }, response);
+
+      assert.equal(mockRequest.mock.calls.length, 0);
+      assert.equal(response.writeHead.mock.calls[0].arguments[0], 400);
+      assert.equal(response.end.mock.calls[0].arguments[0], 'Bad request\n');
+    });
+
+    it('should return 502 when the upstream request errors', () => {
       requestListener(getProxyInfo, request, response);
 
       const onErrorCall = getLastMockOn('error');
       assert.ok(onErrorCall);
 
-      const error = new Error('500');
-      onErrorCall.arguments[1](error);
+      onErrorCall.arguments[1](new Error('500'));
 
-      assert.equal(response.writeHead.mock.calls[0].arguments[0], 500);
+      assert.equal(response.writeHead.mock.calls[0].arguments[0], 502);
       assert.equal(response.end.mock.calls[0].arguments[0].indexOf('error') > -1, true);
     });
 
@@ -174,6 +223,7 @@ describe('proxy_server', () => {
         statusCode: 200,
         headers: {},
         pipe: mock.fn(),
+        on: mock.fn(),
       };
 
       requestListener(getProxyInfo, request, response);
@@ -189,8 +239,7 @@ describe('proxy_server', () => {
 
   describe('connectListener', () => {
     it('should create socks connections', () => {
-      const head = '';
-      connectListener(getProxyInfo, socksRequest, socketRequest, head);
+      connectListener(getProxyInfo, socksRequest, socketRequest, '');
 
       const lastCall = last(mockCreateConnection.mock.calls);
 
@@ -198,46 +247,41 @@ describe('proxy_server', () => {
       assert.equal(lastCall.arguments[0].destination.port, 443);
     });
 
-    it('should write 500 when error thrown', () => {
-      const head = '';
-      connectListener(getProxyInfo, socksRequest, socketRequest, head);
+    it('should write 502 when the SOCKS connection fails', () => {
+      connectListener(getProxyInfo, socksRequest, socketRequest, '');
 
       const lastCall = last(mockCreateConnection.mock.calls);
-      const error = new Error('500');
+      lastCall.arguments[1](new Error('500'), socket);
 
-      lastCall.arguments[1](error, socket);
-
-      assert.equal(socketRequest.write.mock.calls[0].arguments[0].indexOf('500') > -1, true);
+      assert.equal(socketRequest.write.mock.calls[0].arguments[0].indexOf('502') > -1, true);
       assert.equal(socket.pipe.mock.calls.length, 0);
     });
 
     it('should pipe sockets when socket connected', () => {
-      const head = '';
-      connectListener(getProxyInfo, socksRequest, socketRequest, head);
+      connectListener(getProxyInfo, socksRequest, socketRequest, '');
 
       const lastCall = last(mockCreateConnection.mock.calls);
-
-      lastCall.arguments[1](null, {
-        socket,
-      });
+      lastCall.arguments[1](null, { socket });
 
       assert.equal(socketRequest.pipe.mock.calls[0].arguments[0], socket);
       assert.equal(socket.pipe.mock.calls[0].arguments[0], socketRequest);
       assert.equal(socketRequest.write.mock.calls[0].arguments[0].indexOf('200') > -1, true);
-      assert.equal(socket.write.mock.calls[0].arguments[0], head);
+      assert.equal(socket.write.mock.calls[0].arguments[0], '');
     });
   });
 
   describe('createServer', () => {
-    it('should push this.proxyList and register request and connect listeners', () => {
-      const server = createServer({
-        socks: '127.0.0.1:1080',
-      });
+    it('should hold the parsed proxy and register request and connect listeners', () => {
+      const server = createServer({ socks: '127.0.0.1:1080' });
 
-      assert.equal(server.proxyList[0].ipaddress, '127.0.0.1');
-      assert.equal(server.proxyList[0].port, 1080);
+      assert.equal(server.proxy.ipaddress, '127.0.0.1');
+      assert.equal(server.proxy.port, 1080);
       assert.equal(server.listenerCount('request') > 0, true);
       assert.equal(server.listenerCount('connect') > 0, true);
+    });
+
+    it('should refuse to start with an invalid proxy address', () => {
+      assert.throws(() => createServer({ socks: 'nope' }), /Invalid SOCKS proxy/);
     });
   });
 
@@ -309,9 +353,7 @@ describe('proxy_server', () => {
       const socksPort = socksServer.address().port;
 
       // 3. Start hpts proxy server
-      const proxyServer = createServer({
-        socks: `127.0.0.1:${socksPort}`,
-      });
+      const proxyServer = createServer({ socks: `127.0.0.1:${socksPort}` });
       await new Promise(resolve => proxyServer.listen(0, '127.0.0.1', resolve));
       proxyServer.unref();
       const proxyPort = proxyServer.address().port;
@@ -324,6 +366,7 @@ describe('proxy_server', () => {
             port: proxyPort,
             method: 'GET',
             path: `http://127.0.0.1:${targetPort}/hello?x=1`,
+            headers: { 'Proxy-Authorization': 'Basic c2VjcmV0OnNlY3JldA==' },
           }, (res) => {
             let data = '';
             res.setEncoding('utf8');
@@ -356,10 +399,59 @@ describe('proxy_server', () => {
           req.end();
         });
         assert.equal(connectBody.includes('target-ok:GET:/tunneled'), true);
+
+        // Test C: a request whose target is not absolute is rejected, not fatal
+        const rejected = await new Promise((resolve, reject) => {
+          const req = http.request({
+            host: '127.0.0.1',
+            port: proxyPort,
+            method: 'GET',
+            path: '/relative-target',
+          }, (res) => {
+            res.resume();
+            res.on('end', () => resolve(res.statusCode));
+          });
+          req.on('error', reject);
+          req.end();
+        });
+        assert.equal(rejected, 400);
       } finally {
         proxyServer.close();
         socksServer.close();
         targetServer.close();
+      }
+    });
+
+    it('should answer 502 when the SOCKS proxy is not listening', async () => {
+      mock.restoreAll();
+
+      // Grab a port, then close it so nothing is listening there.
+      const dead = net.createServer();
+      await new Promise(resolve => dead.listen(0, '127.0.0.1', resolve));
+      const deadPort = dead.address().port;
+      await new Promise(resolve => dead.close(resolve));
+
+      const proxyServer = createServer({ socks: `127.0.0.1:${deadPort}` });
+      await new Promise(resolve => proxyServer.listen(0, '127.0.0.1', resolve));
+      proxyServer.unref();
+
+      try {
+        const status = await new Promise((resolve, reject) => {
+          const req = http.request({
+            host: '127.0.0.1',
+            port: proxyServer.address().port,
+            method: 'GET',
+            path: 'http://127.0.0.1:9/',
+          }, (res) => {
+            res.resume();
+            res.on('end', () => resolve(res.statusCode));
+          });
+          req.on('error', reject);
+          req.end();
+        });
+        assert.equal(status, 502);
+      } finally {
+        proxyServer.close();
       }
     });
   });

@@ -1,59 +1,102 @@
-# http-proxy-to-socks
+# @netsecdevio/hpts
 
-[![build](https://api.travis-ci.org/oyyd/http-proxy-to-socks.svg?branch=master)](https://travis-ci.org/oyyd/http-proxy-to-socks)
+`hpts` turns a SOCKS5 proxy into an HTTP proxy, so clients that only speak HTTP
+proxying can still use a SOCKS tunnel.
 
-[简介](https://github.com/oyyd/http-proxy-to-socks/blob/master/READMECN.md)
+This is a maintained fork of
+[oyyd/http-proxy-to-socks](https://github.com/oyyd/http-proxy-to-socks). Upstream
+has not shipped a release since 2019 and still pins `socks@1.x`, which predates
+the socket-flow and import fixes in `socks@2.1.6` and does not run correctly on
+current Node.js. The package name is deliberately different so an install can
+never silently resolve back to the abandoned release.
 
-hpts(http-proxy-to-socks) is a nodejs tool to convert SOCKS proxy into http proxy.
+- Node.js **>= 18**
+- Three runtime dependencies: `commander`, `socks@2.8.x`, `socks-proxy-agent@8`
+- No build step, no transpiler, no logging framework, no proxy-list mode
 
-Many clients support setting up http proxy to speed up network requests and for sometimes only SOCKS proxy is available to you. SOCKS proxy supports TCP so that it's possible to convert those requests from http proxy into SOCKS protocol. In this way, you can still keep the goodness provided by your SOCKS proxy(e.g. encryption).
+## Install
 
-## Setup
-
+```sh
+npm install -g @netsecdevio/hpts
 ```
-npm install -g http-proxy-to-socks
-```
-
-Make sure your nodejs version is greater than `4`.
 
 ## Usage
 
-```
+```sh
 hpts -s 127.0.0.1:1080 -p 8080
 ```
 
-This will start a process listening on `8080` as a http proxy. It will convert http requests into socks requests and send them to port `1080`. Please make sure your socks service is available at the corresponding port.
-
-Other options:
+This listens on `127.0.0.1:8080` as an HTTP proxy and forwards each request
+through the SOCKS5 proxy at `127.0.0.1:1080`. Plain `GET`/`POST` requests and
+`CONNECT` tunnels are both supported.
 
 ```
 Options:
   -V, --version          output the version number
-  -s, --socks [socks]    specify your socks proxy host, default: 127.0.0.1:1080
-  -p, --port [port]      specify the listening port of http proxy server, default: 8080
-  -l, --host [host]      specify the listening host of http proxy server, default: 127.0.0.1
-  -c, --config [config]  read configs from file in json format
-  --level [level]        log level, vals: info, error
-  -h, --help             output usage information
+  -s, --socks <socks>    SOCKS proxy as host:port or host:port:user:password
+  -p, --port <port>      port to listen on (default: 8080)
+  -l, --host <host>      address to listen on (default: 127.0.0.1)
+  -c, --config <file>    read socks/host/port/level from a JSON file
+      --level <level>    log level: error, warn or info (default: warn)
+  -h, --help             display help for command
 ```
 
-You can specify a `json` config file with `-c`:
+A config file is plain JSON:
 
 ```json
 {
   "socks": "127.0.0.1:1080",
+  "host": "127.0.0.1",
   "port": 8080
 }
 ```
 
-## CONTRIBUTE
+Only `socks`, `host`, `port` and `level` are read from it. Flags given on the
+command line take precedence over the file.
 
-Please add more tests for corresponding features when you send a PR:
+## Library
 
+```js
+const { createServer } = require('@netsecdevio/hpts');
+
+const server = createServer({
+  socks: '127.0.0.1:1080',
+  host: '127.0.0.1',
+  port: 8080,
+  level: 'info',
+});
+
+server.on('error', (err) => console.error(err.message));
+server.on('listening', () => console.log('proxy up'));
 ```
-npm run test
+
+`createServer()` returns a plain `http.Server`, so `close()`, `address()` and
+`on('request')` behave as usual.
+
+## Security notes
+
+- The listener has **no authentication**. It binds to `127.0.0.1` by default; do
+  not point `--host` at a public interface unless an authenticating layer sits
+  in front of it.
+- Credentials in `--socks` are never logged, and validation errors echo only the
+  host — never the full proxy string.
+- `Proxy-Authorization`, `Proxy-Authenticate` and `Proxy-Connection` from the
+  client are stripped before a request is forwarded, so the proxy hop's
+  credentials cannot leak to the destination server.
+- A malformed request target gets `400`; an unreachable SOCKS proxy or
+  destination gets `502`. Neither crashes the process.
+
+Report a vulnerability via [SECURITY.md](SECURITY.md).
+
+## Tests
+
+```sh
+npm test
 ```
+
+The suite includes an end-to-end test that starts a real RFC 1928 SOCKS5 server
+and tunnels both an HTTP request and a `CONNECT` session through it.
 
 ## License
 
-MIT
+MIT. Original work © 2017-present Ouyang Yadong; see [LICENSE.md](LICENSE.md).

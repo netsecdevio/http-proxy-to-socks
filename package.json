@@ -1,44 +1,52 @@
 {
-  "name": "http-proxy-to-socks",
-  "version": "1.2.0",
-  "description": "hpts(http-proxy-to-socks) is a nodejs client to convert socks proxy into http proxy",
-  "main": "lib/server.js",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/netsecdevio/http-proxy-to-socks.git"
+  "name": "@netsecdevio/hpts",
+  "version": "2.0.0",
+  "description": "hpts: convert a SOCKS5 proxy into an HTTP proxy (maintained fork of http-proxy-to-socks)",
+  "main": "src/server.js",
+  "bin": {
+    "hpts": "bin/hpts.js"
   },
+  "files": [
+    "bin/hpts.js",
+    "src/cli.js",
+    "src/logger.js",
+    "src/proxy_server.js",
+    "src/server.js",
+    "CHANGELOG.md",
+    "SECURITY.md"
+  ],
   "engines": {
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "node scripts/build.js",
-    "lint": "eslint src scripts",
-    "test": "npm run lint && node --test 'src/__tests__/*.spec.js'",
-    "prepublishOnly": "npm run build && npm test"
+    "test": "node --test src/__tests__/*.spec.js"
   },
   "keywords": [
     "socks",
+    "socks5",
     "http proxy",
-    "converting proxy"
+    "proxy",
+    "hpts"
   ],
-  "bin": {
-    "hpts": "bin/hpts.js"
-  },
   "author": "oyyd <oyydoibh@gmail.com>",
+  "contributors": [
+    "netsecdevio"
+  ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/netsecdevio/http-proxy-to-socks.git"
+  },
+  "bugs": {
+    "url": "https://github.com/netsecdevio/http-proxy-to-socks/issues"
+  },
+  "homepage": "https://github.com/netsecdevio/http-proxy-to-socks#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
-    "chalk": "^4.1.2",
     "commander": "^12.1.0",
     "socks": "^2.8.10",
-    "socks-proxy-agent": "^8.0.5",
-    "winston": "^3.19.0"
-  },
-  "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "eslint": "^10.14.0",
-    "globals": "^17.14.0"
-  },
-  "overrides": {
-    "minimatch": "^11.0.4"
+    "socks-proxy-agent": "^8.0.5"
   }
 }
