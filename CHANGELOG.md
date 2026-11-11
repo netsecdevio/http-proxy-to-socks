@@ -1,9 +1,15 @@
 # CHANGELOG
 
-## 2.0.1
+## 2.1.0
 
 - docs: describe the package on its own terms; it is independently maintained
-- docs: repo description, badges and security notes for the standalone repository
+- docs: repository description, badges and security notes for the standalone repo
+- deps: `commander@15.1.0`, `socks-proxy-agent@10.1.0`, `socks@2.8.10`
+- security: override `minimatch` to 11.0.8 for the dev toolchain
+  (GHSA-g3hv-75wg-m249); runtime dependencies audit clean
+- ci: SBOM generation on every push, pull request and week, via the
+  organisation workflow — SPDX 2.3 and CycloneDX 1.5 documents kept as run
+  artifacts, and `sbom` is now a required status check
 
 ## 2.0.0
 
