@@ -1,5 +1,9 @@
 # @dyneconllc/hpts
 
+[![CI](https://github.com/netsecdevio/http-proxy-to-socks/actions/workflows/ci.yml/badge.svg)](https://github.com/netsecdevio/http-proxy-to-socks/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/netsecdevio/http-proxy-to-socks/actions/workflows/codeql.yml/badge.svg)](https://github.com/netsecdevio/http-proxy-to-socks/actions/workflows/codeql.yml)
+[![npm](https://img.shields.io/npm/v/@dyneconllc/hpts)](https://www.npmjs.com/package/@dyneconllc/hpts)
+
 `hpts` turns a SOCKS5 proxy into an HTTP proxy, so clients that only speak HTTP
 proxying can still use a SOCKS tunnel.
 
