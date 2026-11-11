@@ -1,5 +1,5 @@
 {
-  "name": "@netsecdevio/hpts",
+  "name": "@dyneconllc/hpts",
   "version": "2.0.0",
   "description": "hpts: convert a SOCKS5 proxy into an HTTP proxy (maintained fork of http-proxy-to-socks)",
   "main": "src/server.js",

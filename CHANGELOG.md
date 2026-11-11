@@ -2,9 +2,9 @@
 
 ## 2.0.0
 
-Fork of `http-proxy-to-socks`, republished as `@netsecdevio/hpts`.
+Fork of `http-proxy-to-socks`, republished as `@dyneconllc/hpts`.
 
-- rename: package is `@netsecdevio/hpts`; the executable is still `hpts`
+- rename: package is `@dyneconllc/hpts`; the executable is still `hpts`
 - deps: `socks@^2.8.10`, `socks-proxy-agent@^8.0.5`, `commander@^12.1.0`
 - removed: `winston` and `chalk`; logging is ~60 dependency-free lines
 - removed: `lib/` build step and `scripts/build.js`; `src/` is published as-is

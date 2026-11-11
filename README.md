@@ -1,4 +1,4 @@
-# @netsecdevio/hpts
+# @dyneconllc/hpts
 
 `hpts` turns a SOCKS5 proxy into an HTTP proxy, so clients that only speak HTTP
 proxying can still use a SOCKS tunnel.
@@ -17,7 +17,7 @@ never silently resolve back to the abandoned release.
 ## Install
 
 ```sh
-npm install -g @netsecdevio/hpts
+npm install -g @dyneconllc/hpts
 ```
 
 ## Usage
@@ -57,7 +57,7 @@ command line take precedence over the file.
 ## Library
 
 ```js
-const { createServer } = require('@netsecdevio/hpts');
+const { createServer } = require('@dyneconllc/hpts');
 
 const server = createServer({
   socks: '127.0.0.1:1080',

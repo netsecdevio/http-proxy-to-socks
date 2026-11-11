@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the latest published `@netsecdevio/hpts` release receives fixes.
+Only the latest published `@dyneconllc/hpts` release receives fixes.
 
 ## Reporting a vulnerability
 
