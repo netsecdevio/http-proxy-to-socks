@@ -32,6 +32,22 @@ Conventional-commit subjects (`fix:`, `feat:`, `deps:`, `docs:`, `ci:`). One
 concern per PR. `master` is protected: pull requests only, required checks, no
 force pushes. Dependabot PRs follow the same path.
 
+## Branch rules
+
+`master` is governed by a repository ruleset (`protect-master`) plus the org
+baseline ruleset:
+
+- pull requests only; no direct pushes except an administrator bypass
+- required checks: `lint`, `test (20)`, `test (22)`, `test (24)`, `audit`,
+  `package`, all of which must be green on the branch head
+- linear history, no force pushes, no deletion
+- merge methods: squash or rebase, never a merge commit
+- every commit must carry a verified signature (organisation policy). Configure
+  `git config commit.gpgsign true` and `gpg.format ssh` with a signing key that
+  is registered to your GitHub account, or GitHub will refuse the merge.
+
+Release tags matching `v*` are protected against deletion and moving.
+
 ## Security issues
 
 Never open a public issue. Use the private advisory link in
