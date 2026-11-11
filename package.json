@@ -19,7 +19,8 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "test": "node --test src/__tests__/*.spec.js"
+    "test": "node --test src/__tests__/*.spec.js",
+    "prepublishOnly": "npm test"
   },
   "keywords": [
     "socks",
