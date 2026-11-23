@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "commander": "^15.1.0",
-    "socks": "^2.8.10",
+    "socks": "^2.8.11",
     "socks-proxy-agent": "^10.1.0"
   },
   "devDependencies": {
